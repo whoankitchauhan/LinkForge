@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkForge — Enterprise URL Intelligence Platform</title>
+  <meta name="description" content="Shorten, track, and analyse URLs with enterprise-grade analytics, QR codes, and traffic intelligence. Powered by LinkForge." />
+  <meta property="og:title" content="LinkForge — Enterprise URL Intelligence Platform" />
+  <meta property="og:description" content="Distributed URL shortening, real-time analytics, and traffic intelligence." />
+  <meta property="og:type" content="website" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="/frontend/css/styles.css" />
+</head>
+<body>
+  <!-- ── Navigation ─────────────────────────────────────────────────────── -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <a href="#" class="nav-logo" id="nav-logo-link">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">LinkForge</span>
+        <span class="logo-badge">Enterprise</span>
+      </a>
+      <div class="nav-links" id="nav-links">
+        <a href="#features" class="nav-link" id="nav-features">Features</a>
+        <a href="#" class="nav-link hidden" id="nav-dashboard-link">Dashboard</a>
+        <a href="#" class="nav-link hidden" id="nav-analytics-link">Analytics</a>
+      </div>
+      <div class="nav-actions" id="nav-actions">
+        <button class="btn btn-ghost" id="btn-login">Sign In</button>
+        <button class="btn btn-primary" id="btn-register">Get Started</button>
+        <div class="user-menu hidden" id="user-menu">
+          <div class="user-avatar" id="user-avatar">A</div>
+          <span class="user-name" id="user-name">User</span>
+          <button class="btn btn-ghost btn-sm" id="btn-logout">Logout</button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Pages ──────────────────────────────────────────────────────────── -->
+
+  <!-- Landing Page -->
+  <div id="page-landing" class="page active">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg">
+        <div class="hero-orb hero-orb-1"></div>
+        <div class="hero-orb hero-orb-2"></div>
+        <div class="hero-orb hero-orb-3"></div>
+        <div class="hero-grid"></div>
+      </div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          Production-Grade URL Intelligence
+        </div>
+        <h1 class="hero-title">
+          The <span class="gradient-text">Enterprise URL</span><br/>
+          Platform Built to Scale
+        </h1>
+        <p class="hero-subtitle">
+          Distributed URL shortening, real-time analytics, QR code management,
+          and traffic intelligence — all in one powerful platform.
+        </p>
+
+        <!-- URL Shortener Widget -->
+        <div class="shortener-widget" id="shortener-widget">
+          <div class="shortener-input-group">
+            <div class="input-icon">🔗</div>
+            <input
+              type="url"
+              id="url-input"
+              class="shortener-input"
+              placeholder="Paste your long URL here..."
+              autocomplete="off"
+            />
+            <div class="input-options">
+              <select class="strategy-select" id="strategy-select" title="Generation Strategy">
+                <option value="BASE62">Base62</option>
+                <option value="NANOID">NanoID</option>
+                <option value="HASH">Hash</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-shorten" id="btn-shorten">
+              <span class="btn-text">Shorten</span>
+              <span class="btn-icon">→</span>
+            </button>
+          </div>
+          <div class="shortener-advanced" id="shortener-advanced">
+            <input type="text" id="custom-alias-input" class="alias-input" placeholder="Custom alias (optional) — e.g. my-link" />
+            <label class="toggle-label">
+              <input type="checkbox" id="generate-qr" />
+              <span class="toggle-slider"></span>
+              Generate QR Code
+            </label>
+          </div>
+
+          <!-- Result -->
+          <div class="shortener-result hidden" id="shortener-result">
+            <div class="result-header">
+              <span class="result-check">✓</span>
+              <span>Your short link is ready!</span>
+            </div>
+            <div class="result-url-row">
+              <a href="#" class="result-url" id="result-url" target="_blank" rel="noopener"></a>
+              <button class="btn-copy" id="btn-copy" title="Copy to clipboard">📋</button>
+            </div>
+            <div class="result-meta" id="result-meta"></div>
+            <div class="result-qr hidden" id="result-qr">
+              <img id="qr-image" src="" alt="QR Code" class="qr-preview" />
+              <a id="qr-download" class="btn btn-ghost btn-sm" download>⬇ Download QR</a>
+            </div>
+          </div>
+
+          <div class="shortener-error hidden" id="shortener-error"></div>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-item">
+            <span class="stat-number" id="stat-urls">—</span>
+            <span class="stat-label">URLs Shortened</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">62⁷</span>
+            <span class="stat-label">Unique Codes</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-number">&lt;5ms</span>
+            <span class="stat-label">Redirect Speed</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+      <div class="section-container">
+        <div class="section-header">
+          <span class="section-tag">Platform Capabilities</span>
+          <h2 class="section-title">Built for Production at Scale</h2>
+        </div>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Redis-First Caching</h3>
+            <p>Sub-millisecond redirects via Redis sliding cache. Automatic TTL management and cache invalidation on updates.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Real-time Analytics</h3>
+            <p>Async event-driven analytics via RabbitMQ. Track geo, device, browser, referrer, and peak traffic patterns.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔐</div>
+            <h3>JWT Security</h3>
+            <p>Access + refresh token rotation, bcrypt hashing, RBAC roles, rate limiting, and XSS/CSRF protection.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>QR Code Engine</h3>
+            <p>Auto-generate branded QR codes for every link. Track QR scans separately from direct clicks.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🌐</div>
+            <h3>4 Generation Strategies</h3>
+            <p>Base62 encoding, NanoID, SHA-256 hash-based, or fully custom branded aliases.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🚀</div>
+            <h3>Event-Driven Pipeline</h3>
+            <p>RabbitMQ topic exchange for URL events. Background workers handle expiration, cache sync, and notifications.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Auth Page -->
+  <div id="page-auth" class="page hidden">
+    <div class="auth-container">
+      <div class="auth-card">
+        <div class="auth-logo">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">LinkForge</span>
+        </div>
+
+        <!-- Login Form -->
+        <div id="auth-login" class="auth-section">
+          <h2 class="auth-title">Welcome back</h2>
+          <p class="auth-sub">Sign in to your account</p>
+          <form id="form-login" class="auth-form" novalidate>
+            <div class="form-group">
+              <label for="login-email">Email</label>
+              <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label for="login-password">Password</label>
+              <div class="input-password-wrap">
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password" />
+                <button type="button" class="btn-eye" id="btn-toggle-pw">👁</button>
+              </div>
+            </div>
+            <div class="auth-error hidden" id="auth-error-login"></div>
+            <button type="submit" class="btn btn-primary btn-full" id="btn-do-login">
+              <span>Sign In</span>
+              <span class="btn-loader hidden" id="loader-login">⏳</span>
+            </button>
+          </form>
+          <p class="auth-switch">Don't have an account? <a href="#" id="link-to-register">Sign up free →</a></p>
+        </div>
+
+        <!-- Register Form -->
+        <div id="auth-register" class="auth-section hidden">
+          <h2 class="auth-title">Create account</h2>
+          <p class="auth-sub">Join LinkForge Enterprise</p>
+          <form id="form-register" class="auth-form" novalidate>
+            <div class="form-group">
+              <label for="reg-username">Username</label>
+              <input type="text" id="reg-username" class="form-input" placeholder="your_handle" required autocomplete="username" />
+            </div>
+            <div class="form-group">
+              <label for="reg-email">Email</label>
+              <input type="email" id="reg-email" class="form-input" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" class="form-input" placeholder="Min 8 chars, upper, lower, number" required autocomplete="new-password" />
+              <div class="password-strength" id="pw-strength"></div>
+            </div>
+            <div class="auth-error hidden" id="auth-error-reg"></div>
+            <button type="submit" class="btn btn-primary btn-full" id="btn-do-register">
+              <span>Create Account</span>
+              <span class="btn-loader hidden" id="loader-register">⏳</span>
+            </button>
+          </form>
+          <p class="auth-switch">Already have an account? <a href="#" id="link-to-login">Sign in →</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard Page -->
+  <div id="page-dashboard" class="page hidden">
+    <div class="dashboard-container">
+      <div class="dashboard-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-sub">Your URL performance at a glance</p>
+        </div>
+        <div class="dashboard-actions">
+          <select class="period-select" id="dashboard-period">
+            <option value="today">Today</option>
+            <option value="week">Last 7 days</option>
+            <option value="month" selected>Last 30 days</option>
+            <option value="year">Last year</option>
+          </select>
+          <button class="btn btn-primary" id="btn-new-url">+ New URL</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">🔗</div>
+          <div class="kpi-value" id="kpi-total-urls">—</div>
+          <div class="kpi-label">Total URLs</div>
+        </div>
+        <div class="kpi-card kpi-highlight">
+          <div class="kpi-icon">👆</div>
+          <div class="kpi-value" id="kpi-total-clicks">—</div>
+          <div class="kpi-label">Total Clicks</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📱</div>
+          <div class="kpi-value" id="kpi-top-device">—</div>
+          <div class="kpi-label">Top Device</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🌍</div>
+          <div class="kpi-value" id="kpi-top-country">—</div>
+          <div class="kpi-label">Top Country</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="chart-card chart-main">
+          <div class="chart-header">
+            <h3>Click Trend</h3>
+          </div>
+          <div class="chart-body">
+            <canvas id="chart-trend" height="120"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- URL Table -->
+      <div class="table-card">
+        <div class="table-header">
+          <h3>Your Links</h3>
+          <div class="table-controls">
+            <input type="text" class="search-input" id="url-search" placeholder="🔍 Search links..." />
+          </div>
+        </div>
+        <div class="table-body">
+          <table class="url-table" id="url-table">
+            <thead>
+              <tr>
+                <th>Short URL</th>
+                <th>Destination</th>
+                <th>Clicks</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="url-table-body">
+              <tr class="table-loading">
+                <td colspan="6">
+                  <div class="loading-spinner"></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-footer" id="url-pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Page -->
+  <div id="page-analytics" class="page hidden">
+    <div class="dashboard-container">
+      <div class="dashboard-header">
+        <div>
+          <h1 class="page-title" id="analytics-url-title">Analytics</h1>
+          <p class="page-sub" id="analytics-url-short"></p>
+        </div>
+        <div class="dashboard-actions">
+          <select class="period-select" id="analytics-period">
+            <option value="today">Today</option>
+            <option value="week">Last 7 days</option>
+            <option value="month" selected>Last 30 days</option>
+            <option value="year">Last year</option>
+          </select>
+          <button class="btn btn-ghost" id="btn-back-dashboard">← Back</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-highlight">
+          <div class="kpi-icon">👆</div>
+          <div class="kpi-value" id="an-total-clicks">—</div>
+          <div class="kpi-label">Total Clicks</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-value" id="an-unique">—</div>
+          <div class="kpi-label">Unique Visitors</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📱</div>
+          <div class="kpi-value" id="an-qr-clicks">—</div>
+          <div class="kpi-label">QR Scans</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🌍</div>
+          <div class="kpi-value" id="an-top-country">—</div>
+          <div class="kpi-label">Top Country</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card chart-main">
+          <div class="chart-header"><h3>Click Trend</h3></div>
+          <div class="chart-body">
+            <canvas id="chart-an-trend" height="120"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header"><h3>Countries</h3></div>
+          <div class="chart-body">
+            <canvas id="chart-countries" height="200"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3>Devices</h3></div>
+          <div class="chart-body">
+            <canvas id="chart-devices" height="200"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3>Browsers</h3></div>
+          <div class="chart-body">
+            <canvas id="chart-browsers" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal ──────────────────────────────────────────────────────────── -->
+  <div class="modal-overlay hidden" id="modal-overlay">
+    <div class="modal" id="modal-new-url">
+      <div class="modal-header">
+        <h3>Create New Short URL</h3>
+        <button class="modal-close" id="modal-close">✕</button>
+      </div>
+      <form id="form-create-url" class="modal-body">
+        <div class="form-group">
+          <label for="m-original-url">Destination URL *</label>
+          <input type="url" id="m-original-url" class="form-input" placeholder="https://example.com/your-long-url" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="m-custom-alias">Custom Alias</label>
+            <input type="text" id="m-custom-alias" class="form-input" placeholder="my-link" />
+          </div>
+          <div class="form-group">
+            <label for="m-slug-type">Strategy</label>
+            <select id="m-slug-type" class="form-input">
+              <option value="BASE62">Base62</option>
+              <option value="NANOID">NanoID</option>
+              <option value="HASH">Hash</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="m-title">Title</label>
+          <input type="text" id="m-title" class="form-input" placeholder="Descriptive title" />
+        </div>
+        <div class="form-group">
+          <label for="m-tags">Tags (comma-separated)</label>
+          <input type="text" id="m-tags" class="form-input" placeholder="marketing, github, portfolio" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="m-expires">Expires At</label>
+            <input type="datetime-local" id="m-expires" class="form-input" />
+          </div>
+          <div class="form-group form-group-toggle">
+            <label class="toggle-label">
+              <input type="checkbox" id="m-generate-qr" />
+              <span class="toggle-slider"></span>
+              Generate QR Code
+            </label>
+          </div>
+        </div>
+        <div class="modal-error hidden" id="modal-error"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" id="modal-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-create-url-submit">
+            Create Link
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/frontend/js/app.js"></script>
+  <script src="/frontend/js/auth.js"></script>
+  <script src="/frontend/js/dashboard.js"></script>
+  <script src="/frontend/js/analytics.js"></script>
+</body>
+</html>

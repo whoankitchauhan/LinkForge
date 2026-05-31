@@ -1,0 +1,144 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  GUEST
+  USER
+  PREMIUM
+  ADMIN
+}
+
+enum SlugType {
+  BASE62
+  NANOID
+  HASH
+  CUSTOM
+}
+
+enum UrlStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  DELETED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                   String   @id @default(uuid())
+  email                String   @unique
+  username             String   @unique
+  passwordHash         String
+  role                 Role     @default(USER)
+  emailVerified        Boolean  @default(false)
+  emailVerifyToken     String?
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  refreshTokenHash     String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  urls    Url[]
+  apiKeys ApiKey[]
+
+  @@map("users")
+  @@index([email])
+  @@index([username])
+}
+
+model Url {
+  id          String    @id @default(uuid())
+  originalUrl String
+  shortCode   String    @unique
+  customAlias String?   @unique
+  slugType    SlugType  @default(BASE62)
+  domain      String    @default("linkforge.io")
+  title       String?
+  description String?
+  tags        String[]
+  qrCodeUrl   String?
+  expiresAt   DateTime?
+  status      UrlStatus @default(ACTIVE)
+  clickCount  Int       @default(0)
+
+  createdBy String?
+  user      User?   @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clicks Click[]
+
+  @@map("urls")
+  @@index([shortCode])
+  @@index([customAlias])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@index([status])
+  @@index([tags])
+}
+
+model Click {
+  id              String   @id @default(uuid())
+  urlId           String
+  url             Url      @relation(fields: [urlId], references: [id], onDelete: Cascade)
+  ipAddress       String?
+  country         String?
+  city            String?
+  region          String?
+  browser         String?
+  browserVersion  String?
+  operatingSystem String?
+  deviceType      String?
+  referrer        String?
+  userAgent       String?
+  isQrScan        Boolean  @default(false)
+  clickedAt       DateTime @default(now())
+
+  @@map("clicks")
+  @@index([urlId])
+  @@index([clickedAt])
+  @@index([country])
+  @@index([deviceType])
+}
+
+model ApiKey {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey    String       @unique
+  name      String?
+  status    ApiKeyStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+
+  @@map("api_keys")
+  @@index([userId])
+  @@index([apiKey])
+}
+
+model RateLimitLog {
+  id           Int      @id @default(autoincrement())
+  ipAddress    String
+  requestCount Int      @default(1)
+  windowStart  DateTime @default(now())
+
+  @@map("rate_limit_logs")
+  @@index([ipAddress, windowStart])
+}

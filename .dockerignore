@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+dist
+build
+coverage
+.git
+.gitignore
+*.md
+tests/load/results
+logs
+data
+.vscode
+.idea

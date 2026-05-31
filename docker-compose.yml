@@ -1,0 +1,142 @@
+version: "3.9"
+
+services:
+  # ─── Application ────────────────────────────────────────────────────────────
+  app:
+    build: .
+    container_name: linkforge_app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://linkforge:linkforge_secret@postgres:5432/linkforge_db
+      REDIS_HOST: redis
+      RABBITMQ_URL: amqp://linkforge:linkforge_secret@rabbitmq:5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./public:/app/public
+      - ./logs:/app/logs
+    networks:
+      - linkforge_net
+
+  # ─── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: linkforge_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: linkforge
+      POSTGRES_PASSWORD: linkforge_secret
+      POSTGRES_DB: linkforge_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linkforge -d linkforge_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - linkforge_net
+
+  # ─── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: linkforge_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - linkforge_net
+
+  # ─── RabbitMQ ────────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: linkforge_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: linkforge
+      RABBITMQ_DEFAULT_PASS: linkforge_secret
+    ports:
+      - "5672:5672"
+      - "15672:15672"   # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - linkforge_net
+
+  # ─── Prometheus ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: linkforge_prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    depends_on:
+      - app
+    networks:
+      - linkforge_net
+
+  # ─── Grafana ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: linkforge_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: linkforge_grafana
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/linkforge.json
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - linkforge_net
+
+# ─── Volumes ──────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  linkforge_net:
+    driver: bridge
