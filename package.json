@@ -59,7 +59,7 @@
     "testEnvironment": "node",
     "testTimeout": 30000,
     "setupFiles": [
-      "dotenv/config"
+      "./tests/setup.js"
     ]
   },
   "engines": {
