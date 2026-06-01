@@ -1,11 +1,11 @@
 'use strict';
 
-const amqplib = require('amqplib');
 const logger = require('./logger');
 
 // ─── Connection State ─────────────────────────────────────────────────────────
 let connection = null;
 let channel = null;
+let mqAvailable = false;
 
 const EXCHANGE = process.env.RABBITMQ_EXCHANGE || 'linkforge_events';
 
@@ -20,59 +20,94 @@ const EVENTS = {
   USER_PASSWORD_RESET: 'user.password_reset',
 };
 
-// ─── Connect ──────────────────────────────────────────────────────────────────
+// ─── In-process event handlers (fallback when RabbitMQ is unavailable) ────────
+const inProcessHandlers = {};
+
+/**
+ * Register an in-process event handler used when RabbitMQ is not available.
+ */
+function registerInProcessHandler(routingKey, handler) {
+  if (!inProcessHandlers[routingKey]) inProcessHandlers[routingKey] = [];
+  inProcessHandlers[routingKey].push(handler);
+}
+
+// ─── Connect (optional — will not crash if unavailable) ───────────────────────
 async function connect() {
+  const url = process.env.RABBITMQ_URL;
+  if (!url && process.env.NODE_ENV !== 'production') {
+    logger.warn('RabbitMQ: RABBITMQ_URL not set — running in direct (no-queue) mode');
+    mqAvailable = false;
+    return;
+  }
+
   try {
-    connection = await amqplib.connect(process.env.RABBITMQ_URL || 'amqp://localhost');
+    const amqplib = require('amqplib');
+    connection = await Promise.race([
+      amqplib.connect(url || 'amqp://localhost'),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+    ]);
+
     channel = await connection.createChannel();
-
-    // Topic exchange — routes events by routing key pattern
     await channel.assertExchange(EXCHANGE, 'topic', { durable: true });
+    mqAvailable = true;
 
-    logger.info('RabbitMQ: connected and exchange asserted', { exchange: EXCHANGE });
+    logger.info('RabbitMQ: connected', { exchange: EXCHANGE });
 
     connection.on('error', (err) => {
-      logger.error('RabbitMQ connection error', { error: err.message });
+      logger.warn('RabbitMQ: connection error — switching to direct mode', { error: err.message });
+      mqAvailable = false;
     });
 
     connection.on('close', () => {
-      logger.warn('RabbitMQ: connection closed — attempting reconnect in 5s');
-      setTimeout(connect, 5000);
+      logger.warn('RabbitMQ: connection closed — running in direct mode');
+      mqAvailable = false;
+      // Attempt to reconnect after 10s
+      setTimeout(() => connect().catch(() => {}), 10000);
     });
-
-    return channel;
   } catch (err) {
-    logger.error('RabbitMQ: failed to connect', { error: err.message });
-    logger.warn('RabbitMQ: retrying in 5s...');
-    setTimeout(connect, 5000);
+    logger.warn('RabbitMQ: not available — running in direct (no-queue) mode', { error: err.message });
+    mqAvailable = false;
+    // Don't throw — let the app continue without MQ
   }
 }
 
 // ─── Publish ──────────────────────────────────────────────────────────────────
 async function publish(routingKey, payload) {
-  if (!channel) {
-    logger.warn('RabbitMQ: channel not ready, dropping event', { routingKey });
-    return false;
+  // If MQ is up, use it
+  if (mqAvailable && channel) {
+    try {
+      const message = Buffer.from(JSON.stringify(payload));
+      channel.publish(EXCHANGE, routingKey, message, {
+        persistent: true,
+        contentType: 'application/json',
+        timestamp: Date.now(),
+      });
+      return true;
+    } catch (err) {
+      logger.warn('RabbitMQ: publish failed — falling back to direct processing', { error: err.message });
+    }
   }
-  try {
-    const message = Buffer.from(JSON.stringify(payload));
-    channel.publish(EXCHANGE, routingKey, message, {
-      persistent: true,
-      contentType: 'application/json',
-      timestamp: Date.now(),
-    });
-    logger.debug('RabbitMQ: event published', { routingKey, payload });
-    return true;
-  } catch (err) {
-    logger.error('RabbitMQ: publish failed', { error: err.message, routingKey });
-    return false;
+
+  // Fallback: dispatch to in-process handlers synchronously
+  const handlers = inProcessHandlers[routingKey] || [];
+  for (const handler of handlers) {
+    try {
+      await handler(payload, routingKey);
+    } catch (err) {
+      logger.error('In-process event handler failed', { routingKey, error: err.message });
+    }
   }
+
+  return true;
 }
 
 // ─── Subscribe ────────────────────────────────────────────────────────────────
 async function subscribe(queueName, bindingPattern, handler, options = {}) {
-  if (!channel) {
-    throw new Error('RabbitMQ channel not ready. Call connect() first.');
+  if (!mqAvailable || !channel) {
+    // Register as in-process handler instead
+    registerInProcessHandler(bindingPattern, handler);
+    logger.info('RabbitMQ: registered in-process handler', { pattern: bindingPattern });
+    return;
   }
 
   await channel.assertQueue(queueName, { durable: true, ...options });
@@ -87,7 +122,6 @@ async function subscribe(queueName, bindingPattern, handler, options = {}) {
       channel.ack(msg);
     } catch (err) {
       logger.error('RabbitMQ: message processing failed', { error: err.message });
-      // Nack without requeue for poison pill messages
       channel.nack(msg, false, false);
     }
   });
@@ -98,12 +132,17 @@ async function subscribe(queueName, bindingPattern, handler, options = {}) {
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
 async function close() {
   try {
-    if (channel) await channel.close();
-    if (connection) await connection.close();
+    if (channel) await channel.close().catch(() => {});
+    if (connection) await connection.close().catch(() => {});
     logger.info('RabbitMQ: connection closed gracefully');
   } catch (err) {
     logger.error('RabbitMQ: error during close', { error: err.message });
   }
+  mqAvailable = false;
 }
 
-module.exports = { connect, publish, subscribe, close, EVENTS };
+function isMqAvailable() {
+  return mqAvailable;
+}
+
+module.exports = { connect, publish, subscribe, close, EVENTS, registerInProcessHandler, isMqAvailable };
