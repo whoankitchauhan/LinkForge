@@ -1,0 +1,187 @@
+# LinkForge Enterprise: Comprehensive Project Guide
+
+This document provides an A-to-Z explanation of the **LinkForge Enterprise** platform. It is designed to give you a complete understanding of the project's purpose, architecture, implementation details, and workflow without requiring prior knowledge.
+
+---
+
+## 1. Project Overview
+
+**LinkForge Enterprise** is a production-grade, distributed URL shortening, analytics, QR management, and traffic intelligence platform. 
+
+### Purpose
+The primary purpose of LinkForge is to take long, cumbersome URLs and convert them into short, shareable links (e.g., `linkforge.io/xY7aB2`). Beyond simple shortening, it acts as a powerful marketing and analytics tool by tracking exactly who clicks the links, where they are from, and what devices they use.
+
+### Objectives
+- **High Performance:** Redirect users to their destinations with minimal latency (sub-10ms) even under heavy traffic.
+- **Scalability:** Handle millions of URL records and thousands of clicks per second.
+- **Observability:** Provide rich, granular analytics on link traffic.
+- **Enterprise-Ready:** Implement strict security, role-based access control, rate limiting, and robust deployment pipelines.
+
+---
+
+## 2. Technologies Used
+
+LinkForge is built using a modern, scalable technology stack:
+
+### Backend Core
+- **Node.js:** The runtime environment for the backend server.
+- **Express.js:** A fast, unopinionated web framework used to build the API Gateway and handle HTTP routing.
+- **JavaScript (ES6+):** The primary programming language used across the stack.
+
+### Databases & Message Brokers
+- **PostgreSQL:** The primary relational database used to store users, URLs, and click data. Chosen for its ACID compliance and reliability.
+- **Prisma:** A modern Object-Relational Mapper (ORM) used to interact with PostgreSQL via a type-safe schema.
+- **Redis:** An in-memory data store used for two critical functions:
+  1. Caching shortened URLs for ultra-fast redirects.
+  2. Tracking IP hits for the sliding-window rate limiter.
+- **RabbitMQ:** A message broker used to decouple the redirection process from the analytics processing.
+
+### Frontend
+- **Vanilla HTML5, CSS3, JavaScript:** The frontend is built without heavy frameworks (like React or Vue) to ensure maximum performance and simplicity, using a custom dark glassmorphism design system.
+- **Chart.js:** Used to render beautiful, interactive analytics charts on the dashboard.
+
+### Observability & Monitoring
+- **Prometheus:** Scrapes and stores time-series metrics from the Node.js application (e.g., HTTP request durations, cache hit rates).
+- **Grafana:** Visualizes the Prometheus data via pre-configured dashboards.
+- **Winston:** A robust logging library used for structured JSON logging.
+
+### DevOps & Infrastructure
+- **Docker & Docker Compose:** Used to containerize the application and its dependencies (DB, Redis, MQ) for consistent environments across dev and production.
+- **Nginx:** Acts as a reverse proxy, load balancer, and additional security layer in front of the Node app.
+- **GitHub Actions:** CI/CD pipeline for automated testing and Docker image building on every push.
+
+---
+
+## 3. Database Details
+
+The database is powered by **PostgreSQL** and managed via **Prisma**. 
+
+### Schema & Tables
+
+1. **`User` (users)**
+   - Stores user authentication and profile data.
+   - Fields: `id`, `email`, `username`, `passwordHash`, `role`, `emailVerified`, `refreshTokenHash`, etc.
+   - Relationships: One User can have many URLs and API Keys.
+
+2. **`Url` (urls)**
+   - Stores the core URL mapping data.
+   - Fields: `id`, `originalUrl`, `shortCode`, `customAlias`, `slugType`, `qrCodeUrl`, `expiresAt`, `status`, `clickCount`, etc.
+   - Indexes: Indexed heavily on `shortCode` and `customAlias` for blazing-fast lookups.
+   - Relationships: Belongs to a `User`. Has many `Clicks`.
+
+3. **`Click` (clicks)**
+   - Stores granular analytics data for every time a link is visited.
+   - Fields: `id`, `urlId`, `ipAddress`, `country`, `city`, `browser`, `operatingSystem`, `deviceType`, `referrer`, `isQrScan`, `clickedAt`.
+   - Relationships: Belongs to a `Url`.
+
+4. **`ApiKey` (api_keys)**
+   - Manages programmatic access for premium users.
+   - Fields: `id`, `userId`, `apiKey`, `status`.
+
+5. **`RateLimitLog` (rate_limit_logs)**
+   - Tracks requests to prevent abuse.
+
+### Data Flow Example (URL Creation)
+1. User submits a long URL.
+2. The server generates a unique `shortCode`.
+3. Prisma inserts a new record into the `Url` table.
+4. The server returns the short URL to the user.
+
+---
+
+## 4. Architecture & Workflow
+
+LinkForge uses an **Event-Driven Microservice-like Architecture** within a monolithic codebase. This ensures high performance while keeping deployment simple.
+
+### The Redirect Workflow (The "Hot Path")
+When a user clicks a short link (e.g., `linkforge.io/xyz`), the system must respond immediately:
+1. **Request:** The browser hits the Redirect Service.
+2. **Cache Check:** The server checks **Redis** for the short code `xyz`.
+   - *Cache Hit:* If found, it immediately redirects the user (<5ms).
+   - *Cache Miss:* If not found, it queries **PostgreSQL**, caches the result in Redis, then redirects the user (<50ms).
+3. **Event Publishing:** *After* the redirect is sent to the user, the server publishes a `URL_CLICKED` message to **RabbitMQ**. It does *not* wait for the database to save the click, ensuring the user experiences zero lag.
+
+### The Analytics Workflow (Background)
+1. The **Analytics Worker** (running in the background) listens to RabbitMQ.
+2. It picks up the `URL_CLICKED` message containing the visitor's IP and User-Agent.
+3. It parses the User-Agent to determine the browser and OS.
+4. It performs a Geo-IP lookup to determine the user's country and city.
+5. It safely saves this rich data into the `Click` table in PostgreSQL.
+
+---
+
+## 5. Features & Functionalities
+
+### URL Generation Strategies
+LinkForge supports 4 ways to generate short codes:
+1. **Base62:** Converts an auto-incrementing ID into a 7-character alphanumeric string (e.g., `aB3x9Qz`).
+2. **NanoID:** Generates a highly secure, cryptographically random 7-character string.
+3. **Hash:** Uses SHA-256 to create a deterministic hash based on the original URL and timestamp.
+4. **Custom Alias:** Allows users to define their own branded link (e.g., `linkforge.io/my-campaign`).
+
+### QR Code Generation
+Every time a short URL is created, the system automatically generates a scannable QR code PNG and attaches it to the URL record.
+
+### Comprehensive Analytics
+Users can view charts detailing:
+- Total clicks over time (daily/weekly).
+- Geographic distribution (Clicks by Country).
+- Device types (Mobile vs. Desktop).
+- Browsers and Operating Systems.
+- Top referrers (e.g., Google, Twitter, direct).
+
+### Link Expiration & Management
+Users can set an `expiresAt` date on their links. A background worker constantly scans the database and automatically disables links that have passed their expiration date, ensuring dead links are safely retired.
+
+---
+
+## 6. Implementation Details
+
+### Security & Authentication
+- **JWT (JSON Web Tokens):** The system uses short-lived Access Tokens (15 mins) and long-lived Refresh Tokens (7 days).
+- **Security Middleware:** Uses `helmet` to set secure HTTP headers and prevents Cross-Site Scripting (XSS).
+- **Rate Limiting:** A sliding-window algorithm backed by Redis ensures that users cannot spam the API (e.g., max 100 requests per 15 minutes per IP).
+
+### File Structure
+The project is organized by domain/feature:
+- `services/`: Contains isolated modules (`auth`, `url`, `redirect`, `analytics`, `notification`). Each has its own routes, controller, and business logic.
+- `shared/`: Contains infrastructure singletons (Redis, RabbitMQ, Prisma, Logger).
+- `frontend/`: Contains the SPA HTML, CSS, and JS.
+- `monitoring/`: Contains Prometheus and Grafana configuration.
+- `tests/`: Contains Jest unit and integration tests, and Artillery load tests.
+
+---
+
+## 7. User Roles & Permissions
+
+The platform enforces Role-Based Access Control (RBAC):
+
+1. **GUEST:** Unauthenticated users. Can be rate-limited heavily.
+2. **USER:** Standard authenticated users. Can create links, view their own analytics, and generate QR codes.
+3. **PREMIUM:** Paid users (placeholder for future billing integration). Can create Custom Aliases and generate API Keys.
+4. **ADMIN:** System administrators. Can view all links across the platform, ban users, and access system health metrics.
+
+---
+
+## 8. Deployment & Environment
+
+The application is designed to be deployed using Docker.
+
+### Environments
+- **Development:** Developers run `docker compose up postgres redis rabbitmq -d` and run the Node application natively using `npm run dev` for hot-reloading.
+- **Testing:** The CI pipeline creates a temporary PostgreSQL and Redis container to run the Jest Integration tests.
+- **Production:** The `Dockerfile` uses a multi-stage build process. It installs dependencies, builds the Prisma engine, and copies only the necessary files to a minimal Alpine Linux image. It runs as a non-root user for security.
+
+### Nginx Reverse Proxy
+In production, Node.js is placed behind Nginx. Nginx handles client connections, terminates SSL (if configured), and forwards requests to the Node app, providing an extra layer of protection against DDoS attacks.
+
+---
+
+## 9. Additional Notes & Edge Cases
+
+- **Cache Warming:** When the application starts, a `cacheSyncWorker` automatically fetches the top 100 most popular URLs from the database and loads them into Redis. This prevents a "cold start" delay for high-traffic links.
+- **Bot Filtering:** The Analytics Service has basic heuristics to detect search engine bots (like Googlebot) and can filter them out so they don't artificially inflate click metrics.
+- **Malicious URL Prevention:** The URL validator strictly prevents shortening of `javascript:`, `file:`, or `data:` schemes to protect against XSS and open redirect vulnerabilities. It also blocks localhost and private IPs from being shortened.
+
+> [!TIP]
+> **Reading the Code:** If you want to trace the code, the best place to start is `app.js` (where routes are registered), followed by `services/redirect/controller.js` (to see the high-performance hot-path implementation).
