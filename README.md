@@ -1,8 +1,72 @@
+<div align="center">
+
 # ⚡ LinkForge Enterprise
 
 **Distributed URL Shortening, Analytics, QR Management & Traffic Intelligence Platform**
 
-> A production-grade SaaS backend demonstrating distributed systems, scalable API design, Redis caching, RabbitMQ messaging, JWT security, database optimisation, Docker orchestration, observability, and cloud-ready deployment.
+> A production-grade full-stack application with a real-time analytics dashboard, JWT auth, Redis caching, RabbitMQ messaging, QR code generation, and a beautiful dark SPA frontend — all running locally with just Node.js + PostgreSQL.
+
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Prisma](https://img.shields.io/badge/Prisma-5-2D3748?style=flat-square&logo=prisma&logoColor=white)](https://www.prisma.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+
+</div>
+
+---
+
+## 🖼️ Live Screenshots
+
+> Real screenshots captured from the running application at `http://localhost:3000`
+
+### 🏠 Landing Page — Hero & URL Shortener
+
+![Landing Page](docs/screenshots/01-landing.png)
+
+*The hero section with the live URL shortener widget, generation strategy selector, and stats.*
+
+---
+
+### ✂️ URL Shortening in Action
+
+![URL Input](docs/screenshots/03-shorten-input.png)
+
+*Typing a long URL — supports Base62, NanoID, Hash strategies, and custom aliases.*
+
+---
+
+### 🌟 Platform Features
+
+![Features Section](docs/screenshots/02-features.png)
+
+*Feature cards: Redis caching, real-time analytics, JWT security, QR codes, and more.*
+
+---
+
+### 🔐 Sign In
+
+![Sign In](docs/screenshots/05-auth-login.png)
+
+*Clean auth page with email + password login, token-based sessions.*
+
+![Sign In Filled](docs/screenshots/06-auth-login-filled.png)
+
+---
+
+### 📝 Create Account
+
+![Register](docs/screenshots/07-auth-register.png)
+
+*Registration with username, email, password strength validation.*
+
+---
+
+### 💚 Health Check API — Live Server
+
+![Health Endpoint](docs/screenshots/08-health-endpoint.png)
+
+*`GET /health` — proof the server is running: status, uptime, version, environment.*
 
 ---
 
@@ -14,43 +78,37 @@
                           └────────────────┬────────────────┘
                                            │
                           ┌────────────────▼────────────────┐
-                          │    Nginx (Reverse Proxy + LB)    │
-                          └────────────────┬────────────────┘
-                                           │
-                          ┌────────────────▼────────────────┐
                           │      Express.js API Gateway       │
                           │   ┌──────┐ ┌─────┐ ┌────────┐   │
                           │   │ Auth │ │ URL │ │Redirect│   │
                           │   └──┬───┘ └──┬──┘ └───┬────┘   │
                           └──────┼────────┼─────────┼───────┘
                                  │        │         │
-              ┌──────────────────┼────────┼─────────┼─────────────┐
-              │                  │  Redis  │         │             │
-              │    ┌─────────────▼─────────▼─────┐  │             │
-              │    │        Redis Cache           │  │             │
-              │    │   URL Lookup · Rate Limit    │  │             │
-              │    └─────────────────────────────┘  │             │
-              │                                      │             │
-              │    ┌────────────────────────────┐    │             │
-              │    │      PostgreSQL (Prisma)    │◄───┘             │
-              │    │   users · urls · clicks     │                 │
-              │    └─────────────────────────────┘                 │
-              │                                                     │
-              │    ┌─────────────────────────────┐                 │
-              │    │    RabbitMQ Topic Exchange   │                 │
-              │    │  URL_CLICKED · URL_EXPIRED   │                 │
-              │    └────────┬────────────┬────────┘                │
-              │             │            │                          │
-              │    ┌────────▼──┐  ┌──────▼──────┐                 │
-              │    │ Analytics  │  │Notification │                 │
-              │    │  Worker   │  │   Worker    │                 │
-              │    └───────────┘  └─────────────┘                 │
-              │                                                     │
-              │    ┌──────────────────────────────┐                │
-              │    │  Prometheus + Grafana Stack   │                │
-              │    └──────────────────────────────┘                │
-              └─────────────────────────────────────────────────────┘
+              ┌──────────────────┼────────┼─────────┼───────────┐
+              │                  │        │         │           │
+              │    ┌─────────────▼──────────────┐  │           │
+              │    │  Redis Cache (OPTIONAL)     │  │           │
+              │    │  URL Lookup · Rate Limit    │  │           │
+              │    └─────────────────────────────┘  │           │
+              │                                      │           │
+              │    ┌────────────────────────────┐    │           │
+              │    │   PostgreSQL (via Prisma)   │◄───┘           │
+              │    │  users · urls · clicks      │               │
+              │    └────────────────────────────┘               │
+              │                                                   │
+              │    ┌─────────────────────────────┐               │
+              │    │  RabbitMQ (OPTIONAL)         │               │
+              │    │  URL_CLICKED · URL_EXPIRED   │               │
+              │    └────────┬──────────┬──────────┘               │
+              │             │          │                          │
+              │    ┌────────▼──┐  ┌────▼─────────┐              │
+              │    │ Analytics  │  │ Notification │              │
+              │    │  Worker   │  │   Worker     │              │
+              │    └───────────┘  └──────────────┘              │
+              └───────────────────────────────────────────────────┘
 ```
+
+> **Note:** Redis and RabbitMQ are **optional** — the app runs fully with only PostgreSQL, falling back to direct DB queries and in-process event handling.
 
 ---
 
@@ -59,31 +117,31 @@
 | Component | Technology |
 |---|---|
 | Runtime | Node.js 20 LTS |
-| Framework | Express.js |
-| Auth | JWT (access + refresh) + bcrypt |
-| Primary Database | PostgreSQL 16 |
+| Framework | Express.js 4 |
+| Auth | JWT (access + refresh tokens) + bcrypt |
+| Database | PostgreSQL 16 |
 | ORM | Prisma 5 |
-| Cache | Redis 7 (ioredis) |
-| Message Broker | RabbitMQ 3 (amqplib) |
+| Cache | Redis 7 via ioredis *(optional)* |
+| Message Broker | RabbitMQ 3 via amqplib *(optional)* |
 | QR Codes | qrcode (npm) |
 | Geo-IP | geoip-lite |
-| Email | Nodemailer |
-| Monitoring | Prometheus (prom-client) + Grafana |
-| Logging | Winston (JSON) |
-| Containerisation | Docker + Docker Compose |
-| CI/CD | GitHub Actions |
-| Testing | Jest + Supertest + Artillery |
-| Frontend | Vanilla HTML/CSS/JS (SPA) |
-| Reverse Proxy | Nginx |
+| Email | Nodemailer *(optional, logs in dev)* |
+| Monitoring | Prometheus prom-client |
+| Logging | Winston (coloured dev / JSON prod) |
+| Frontend | Vanilla HTML/CSS/JS SPA |
+| Testing | Jest + Supertest |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start — Run Locally
 
 ### Prerequisites
-- Node.js 20+
-- Docker Desktop
-- Git
+- **Node.js 20+** → [nodejs.org](https://nodejs.org)
+- **PostgreSQL** running locally (or any reachable Postgres instance)
+
+> Redis and RabbitMQ are **NOT required** to run and use the app.
+
+---
 
 ### 1. Clone & Install
 
@@ -93,42 +151,85 @@ cd LinkForge
 npm install
 ```
 
+---
+
 ### 2. Configure Environment
 
+The `.env` file is already set up with sensible defaults. The only thing you **must** change is your PostgreSQL connection string:
+
 ```bash
-cp .env.example .env
-# Edit .env with your values
+# Open .env and set your database URL:
+DATABASE_URL=postgresql://YOUR_USER:YOUR_PASSWORD@localhost:5432/linkforge_db
 ```
 
-### 3. Start Infrastructure
+Everything else (JWT secrets, Redis, RabbitMQ, SMTP) works out of the box with defaults or is skipped gracefully.
+
+---
+
+### 3. Set Up the Database
 
 ```bash
-docker compose up postgres redis rabbitmq -d
-```
-
-### 4. Set up Database
-
-```bash
+# Generate Prisma client
 npx prisma generate
-npx prisma migrate dev --name init
+
+# Push schema to your database (creates all tables)
+npx prisma db push
 ```
 
-### 5. Start the Server
+---
+
+### 4. Start the Server
 
 ```bash
 npm run dev
 ```
 
-App: http://localhost:3000
-RabbitMQ UI: http://localhost:15672 (linkforge / linkforge_secret)
-Prometheus: http://localhost:9090
-Grafana: http://localhost:3001 (admin / linkforge_grafana)
+Open → **http://localhost:3000** 🎉
 
-### 6. Full Stack with Docker
+**What you'll see in the terminal:**
+```
+[info] In-process fallback handlers registered (no-MQ mode)
+[warn] RabbitMQ: RABBITMQ_URL not set — running in direct (no-queue) mode
+[info] LinkForge server started {"port":3000,"env":"development"}
+[warn] Redis: not available — running without cache (DB-only mode)
+```
+
+The `warn` lines are **expected** — Redis and RabbitMQ are optional and the app degrades gracefully.
+
+---
+
+### Optional: Enable Redis (for caching)
+
+If you have Redis installed locally:
+
+```bash
+# In .env, Redis settings are already defaulted to localhost:6379
+# Just make sure Redis is running:
+redis-server
+```
+
+---
+
+### Optional: Enable RabbitMQ (for async event queues)
+
+```bash
+# In .env, uncomment:
+RABBITMQ_URL=amqp://guest:guest@localhost:5672
+
+# Then start RabbitMQ:
+# Windows: rabbitmq-service start
+# Or via Docker: docker run -d -p 5672:5672 rabbitmq:3
+```
+
+---
+
+### Optional: Full Stack with Docker
 
 ```bash
 docker compose up --build
 ```
+
+This starts: App + PostgreSQL + Redis + RabbitMQ + Prometheus + Grafana
 
 ---
 
@@ -139,7 +240,7 @@ docker compose up --build
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | POST | `/api/auth/register` | ✗ | Register new user |
-| GET | `/api/auth/verify-email?token=` | ✗ | Verify email |
+| GET | `/api/auth/verify-email?token=` | ✗ | Verify email address |
 | POST | `/api/auth/login` | ✗ | Login → access + refresh tokens |
 | POST | `/api/auth/refresh` | ✗ | Rotate tokens |
 | POST | `/api/auth/logout` | ✓ | Invalidate session |
@@ -152,7 +253,7 @@ docker compose up --build
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | POST | `/api/url` | Optional | Create short URL |
-| GET | `/api/url` | ✓ | List user's URLs (paginated) |
+| GET | `/api/url` | ✓ | List your URLs (paginated) |
 | GET | `/api/url/search` | ✓ | Search/filter URLs |
 | GET | `/api/url/:id` | ✓ | Get URL details |
 | PUT | `/api/url/:id` | ✓ | Update URL metadata |
@@ -163,15 +264,17 @@ docker compose up --build
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/api/analytics/dashboard` | ✓ | Dashboard summary |
-| GET | `/api/analytics/:urlId` | ✓ | URL analytics breakdown |
+| GET | `/api/analytics/dashboard` | ✓ | Dashboard summary + click trend |
+| GET | `/api/analytics/:urlId` | ✓ | Full analytics breakdown for a URL |
 | GET | `/api/analytics/:urlId/clicks` | ✓ | Paginated click log |
 
-### Redirect
+### Redirect & Utility
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | GET | `/:shortCode` | ✗ | Resolve and redirect (302) |
+| GET | `/health` | ✗ | Health check JSON |
+| GET | `/metrics` | ✗ | Prometheus metrics |
 
 ---
 
@@ -192,19 +295,20 @@ docker compose up --build
 GET /xA92Ks7
       │
       ▼
-Redis Cache Lookup (O(1))
+Redis Cache Lookup  ──── if Redis available ────►  O(1) lookup
       │
-      ├── HIT ──► Check status/expiry ──► 302 Redirect
-      │           Publish URL_CLICKED event (async)
+      ├── HIT  ──► Check status/expiry ──► 302 Redirect
+      │           Click event → in-process or MQ handler
       │
       └── MISS ──► PostgreSQL Lookup
                     │
                     ├── Not Found ──► 404
-                    ├── Expired   ──► 410 + mark EXPIRED
-                    └── Active    ──► Update Redis (TTL 24h)
-                                      Increment click count
+                    ├── Inactive  ──► 410
+                    ├── Expired   ──► 410 + mark EXPIRED in DB
+                    └── Active    ──► Cache update (if Redis up)
+                                      Click count increment
                                       302 Redirect
-                                      Publish URL_CLICKED event
+                                      Analytics event (direct or MQ)
 ```
 
 ---
@@ -212,15 +316,19 @@ Redis Cache Lookup (O(1))
 ## 📊 Analytics Pipeline
 
 ```
-URL_CLICKED Event (RabbitMQ)
+URL_CLICKED Event
         │
         ▼
-Analytics Worker Consumer
+If RabbitMQ available → MQ Queue → Analytics Worker
+If RabbitMQ down     → In-process handler (direct)
         │
-        ├── Geo-IP Enrichment (geoip-lite)
+        ▼
+processClickEvent()
+        │
+        ├── Geo-IP Enrichment  (geoip-lite)
         │     IP → Country / City / Region
         │
-        ├── UA Parsing (ua-parser-js)
+        ├── UA Parsing  (ua-parser-js)
         │     Browser / OS / Device Type
         │
         └── DB Insert → clicks table
@@ -228,10 +336,10 @@ Analytics Worker Consumer
 ```
 
 **Tracked Dimensions:**
-- Total clicks & unique visitors
-- Daily/weekly/monthly trends
+- Total clicks & unique visitors (by IP)
+- Daily / weekly / monthly trends
 - Country & city distribution
-- Device type (desktop/mobile/tablet)
+- Device type (desktop / mobile / tablet)
 - Browser & OS breakdown
 - Referrer sources
 - QR scan vs direct click ratio
@@ -244,18 +352,18 @@ Analytics Worker Consumer
 |---|---|
 | XSS | Helmet CSP headers + input sanitisation |
 | SQL Injection | Prisma parameterised queries |
-| Open Redirect | URL scheme validation (no JS/data://, no private IPs) |
+| Open Redirect | URL scheme validation (no `javascript:`, `data:`, private IPs) |
 | CSRF | SameSite=strict cookies + CORS origin whitelist |
-| Brute Force | Redis sliding-window rate limiting (10 req/min on login) |
+| Brute Force | Sliding-window rate limiting (10 req/min on login) |
 | Bot Abuse | UA heuristic filtering in redirect pipeline |
-| Password Exposure | bcrypt (12 rounds) + refresh token hashing |
+| Password Exposure | bcrypt (10 rounds dev / 12 prod) + refresh token hashing |
 | Token Theft | HttpOnly cookies + short-lived access tokens (15 min) |
 
 ---
 
 ## ⚡ Rate Limiting
 
-Uses Redis sliding-window counter (INCR + EXPIRE):
+Uses Redis sliding-window counter (falls back to in-memory when Redis is offline):
 
 | Endpoint | Limit | Window |
 |---|---|---|
@@ -264,46 +372,47 @@ Uses Redis sliding-window counter (INCR + EXPIRE):
 | `GET /:shortCode` | 200 requests | 1 minute |
 | General API | 200 requests | 1 minute |
 
-Headers returned: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Window`
-
 ---
 
 ## 📦 Caching Strategy
 
 ```
 Key:   url:{shortCode}
-Value: { originalUrl, status, expiresAt }
-TTL:   86400s (24 hours, configurable)
+Value: { id, originalUrl, status, expiresAt }
+TTL:   86400s (24 hours, configurable via CACHE_TTL)
+
+Graceful Degradation:
+  - If Redis unavailable → all cache operations are no-ops
+  - Redirects still work via direct PostgreSQL lookups
 
 Invalidation Events:
   - URL updated  → DELETE key
   - URL deleted  → DELETE key
   - URL expired  → DELETE key (expiration worker)
-
-Warming:
-  - On startup: top 100 most-clicked ACTIVE URLs loaded into Redis
-  - Refresh: every 6 hours
 ```
 
 ---
 
-## 🔄 RabbitMQ Event Catalog
+## 🔄 Event System
 
 | Event Key | Publisher | Consumers |
 |---|---|---|
-| `url.created` | URL Service | — |
-| `url.clicked` | Redirect Service | Analytics Worker |
-| `url.updated` | URL Service | — |
-| `url.deleted` | URL Service | — |
-| `url.expired` | Expiration Worker | Notification Worker |
-| `user.registered` | Auth Service | Notification Worker |
-| `user.password_reset` | Auth Service | Notification Worker |
+| `url.created` | URL Service | *(logged)* |
+| `url.clicked` | Redirect Service | Analytics handler |
+| `url.updated` | URL Service | *(logged)* |
+| `url.deleted` | URL Service | *(logged)* |
+| `url.expired` | Expiration Worker | Notification handler |
+| `user.registered` | Auth Service | Notification handler |
+| `user.password_reset` | Auth Service | Notification handler |
 
-Exchange type: **topic** (pattern routing for future fan-out)
+> When RabbitMQ is running: events go through the topic exchange to dedicated workers.  
+> When RabbitMQ is **not** running: events are dispatched **in-process** directly to the same handler functions — same behaviour, no queue.
 
 ---
 
 ## 📈 Prometheus Metrics
+
+Available at `GET /metrics`:
 
 | Metric | Type | Description |
 |---|---|---|
@@ -318,16 +427,74 @@ Exchange type: **topic** (pattern routing for future fan-out)
 
 ---
 
-## 🐳 Docker Services
+## 📁 Project Structure
 
-```yaml
-Services:
-  app         → Node.js API  (port 3000)
-  postgres    → PostgreSQL   (port 5432)
-  redis       → Redis        (port 6379)
-  rabbitmq    → RabbitMQ     (port 5672, UI: 15672)
-  prometheus  → Prometheus   (port 9090)
-  grafana     → Grafana      (port 3001)
+```
+LinkForge/
+├── services/
+│   ├── auth/                   ← JWT auth, register, login, password reset
+│   │   ├── controller.js
+│   │   ├── routes.js
+│   │   ├── service.js
+│   │   └── validators.js
+│   ├── url/                    ← CRUD, generators (Base62/NanoID/Hash), QR
+│   │   ├── controller.js
+│   │   ├── generators.js
+│   │   ├── qr.js
+│   │   ├── routes.js
+│   │   ├── service.js
+│   │   └── validators.js
+│   ├── redirect/               ← Hot path: cache-first redirect
+│   │   ├── controller.js
+│   │   ├── routes.js
+│   │   └── service.js
+│   ├── analytics/              ← Aggregation queries + click processor
+│   │   ├── clickProcessor.js   ← Shared: used by MQ worker & in-process
+│   │   ├── controller.js
+│   │   ├── routes.js
+│   │   ├── service.js
+│   │   └── worker.js
+│   ├── notification/           ← Email sending
+│   │   ├── mailer.js
+│   │   ├── notificationProcessor.js  ← Shared: MQ worker & in-process
+│   │   └── worker.js
+│   └── workers/                ← Background jobs
+│       ├── expirationWorker.js ← Marks expired URLs, fires notifications
+│       └── cacheSyncWorker.js  ← Warms Redis with top URLs
+├── shared/
+│   ├── middleware/
+│   │   ├── auth.js             ← JWT verify, RBAC, optional auth
+│   │   ├── errorHandler.js     ← Centralised error + 404 handling
+│   │   └── rateLimit.js        ← Redis sliding-window limiter
+│   ├── redis.js                ← ioredis singleton (graceful if offline)
+│   ├── rabbitmq.js             ← amqplib + in-process fallback
+│   ├── prisma.js               ← Prisma client singleton
+│   ├── logger.js               ← Winston (coloured dev / JSON prod)
+│   └── metrics.js              ← prom-client registry
+├── prisma/
+│   ├── schema.prisma           ← Full DB schema with indexes
+│   └── seed.js                 ← Sample data seeder
+├── frontend/                   ← SPA (HTML/CSS/JS, no framework)
+│   ├── index.html
+│   ├── css/styles.css
+│   └── js/
+│       ├── app.js
+│       ├── auth.js
+│       ├── dashboard.js
+│       └── analytics.js
+├── docs/
+│   └── screenshots/            ← Real browser screenshots
+├── scripts/
+│   └── take-screenshots.js     ← Puppeteer screenshot automation
+├── monitoring/                 ← Prometheus + Grafana configs
+├── nginx/                      ← Reverse proxy config
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── load/
+├── .env                        ← Environment variables (annotated)
+├── app.js                      ← Express app factory
+└── server.js                   ← Entry point + graceful shutdown
 ```
 
 ---
@@ -335,81 +502,37 @@ Services:
 ## 🧪 Testing
 
 ```bash
-# Unit tests (URL generators, analytics logic)
+# Unit tests
 npm run test:unit
 
-# Integration tests (all API endpoints)
+# Integration tests (requires running DB)
 npm run test:integration
 
-# Full test suite with coverage
+# Full suite with coverage
 npm run test:coverage
-
-# Load testing (requires running server)
-npm run test:load
 ```
 
 ---
 
-## ☁️ AWS Deployment Architecture
+## 🐳 Docker (Optional)
 
-```
-Internet
-    │
-    ▼
-Route 53 (DNS)
-    │
-    ▼
-CloudFront CDN
-    │
-    ▼
-Application Load Balancer
-    │
-    ├──► EC2 Auto Scaling Group (Node.js app containers)
-    │
-    ├──► ElastiCache (Redis cluster)
-    │
-    ├──► RDS PostgreSQL (Multi-AZ)
-    │
-    ├──► Amazon MQ (RabbitMQ)
-    │
-    └──► CloudWatch (Logs + Alerts)
+```bash
+# Start only infrastructure (DB + optional services)
+docker compose up postgres redis rabbitmq -d
+
+# Or run everything including the app
+docker compose up --build
 ```
 
----
-
-## 📁 Project Structure
-
-```
-LinkForge/
-├── services/
-│   ├── auth/          ← JWT auth, registration, password reset
-│   ├── url/           ← CRUD, generators, QR codes
-│   ├── redirect/      ← Hot path: cache-first redirect
-│   ├── analytics/     ← RabbitMQ consumer + aggregation queries
-│   ├── notification/  ← Email worker
-│   └── workers/       ← Expiration scanner, cache warmer
-├── shared/
-│   ├── middleware/    ← auth.js, errorHandler.js, rateLimit.js
-│   ├── redis.js       ← ioredis singleton + cache helpers
-│   ├── rabbitmq.js    ← amqplib connection + publish/subscribe
-│   ├── prisma.js      ← Prisma client singleton
-│   ├── logger.js      ← Winston JSON logger
-│   └── metrics.js     ← prom-client metrics registry
-├── prisma/
-│   └── schema.prisma  ← Full DB schema with indexes
-├── frontend/          ← SPA (HTML/CSS/JS)
-├── monitoring/        ← Prometheus + Grafana configs
-├── nginx/             ← Reverse proxy config
-├── tests/
-│   ├── unit/          ← Jest unit tests
-│   ├── integration/   ← Supertest API tests
-│   └── load/          ← Artillery load scenarios
-├── .github/workflows/ ← CI/CD pipelines
-├── docker-compose.yml
-├── Dockerfile
-├── app.js
-└── server.js
-```
+Services:
+| Service | Port | Notes |
+|---|---|---|
+| App | 3000 | Node.js API + SPA |
+| PostgreSQL | 5432 | Required |
+| Redis | 6379 | Optional |
+| RabbitMQ | 5672 / 15672 | Optional (15672 = management UI) |
+| Prometheus | 9090 | Optional |
+| Grafana | 3001 | Optional |
 
 ---
 
