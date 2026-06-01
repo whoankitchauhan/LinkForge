@@ -24,22 +24,27 @@ const BOT_PATTERN =
 async function resolve(shortCode, requestMeta) {
   const cacheKey = `url:${shortCode}`;
 
-  // ── Step 1: Redis lookup ───────────────────────────────────────────────────
+  // ── Step 1: Redis lookup (may be no-op if Redis is down) ──────────────────
   const cached = await cacheGet(cacheKey);
 
   if (cached) {
     cacheHits.inc();
     logger.debug('Cache hit', { shortCode });
 
-    const { originalUrl, status, expiresAt } = cached;
+    const { originalUrl, status, expiresAt, id: urlId } = cached;
 
     if (status !== 'ACTIVE') throw new AppError('This link is inactive', 410);
     if (expiresAt && new Date(expiresAt) < new Date()) {
       throw new AppError('This link has expired', 410);
     }
 
-    // Publish analytics event (fire-and-forget)
-    _publishClickEvent(shortCode, originalUrl, requestMeta).catch(() => {});
+    // Increment click count asynchronously
+    if (urlId) {
+      prisma.url.update({ where: { id: urlId }, data: { clickCount: { increment: 1 } } }).catch(() => {});
+    }
+
+    // Publish analytics event (handled in-process if MQ is down)
+    _publishClickEvent(shortCode, originalUrl, { ...requestMeta, urlId }).catch(() => {});
 
     redirectsTotal.inc();
     return originalUrl;
@@ -63,15 +68,14 @@ async function resolve(shortCode, requestMeta) {
 
   if (url.status !== 'ACTIVE') throw new AppError('This link is inactive', 410);
   if (url.expiresAt && new Date(url.expiresAt) < new Date()) {
-    // Mark as expired in DB
     await prisma.url.update({ where: { id: url.id }, data: { status: 'EXPIRED' } });
     throw new AppError('This link has expired', 410);
   }
 
-  // ── Step 3: Update cache ───────────────────────────────────────────────────
+  // ── Step 3: Update cache (no-op if Redis is down) ─────────────────────────
   await cacheSet(
     cacheKey,
-    { originalUrl: url.originalUrl, status: url.status, expiresAt: url.expiresAt },
+    { id: url.id, originalUrl: url.originalUrl, status: url.status, expiresAt: url.expiresAt },
     CACHE_TTL
   );
 
@@ -88,7 +92,8 @@ async function resolve(shortCode, requestMeta) {
 }
 
 /**
- * Fire-and-forget: publish click event to RabbitMQ for async analytics processing.
+ * Fire-and-forget: publish click event.
+ * When MQ is unavailable, publish() dispatches to in-process handler directly.
  */
 async function _publishClickEvent(shortCode, originalUrl, meta) {
   const isBot = BOT_PATTERN.test(meta.userAgent || '');
