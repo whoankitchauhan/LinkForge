@@ -114,16 +114,12 @@ async function getUrlAnalytics(urlId, userId, period = 'month') {
       take: 15,
     }),
 
-    // Daily click trend (last period)
-    prisma.$queryRaw`
-      SELECT DATE(clicked_at AT TIME ZONE 'UTC') as date, COUNT(*) as count
-      FROM clicks
-      WHERE url_id = ${urlId}::uuid
-        AND clicked_at >= ${from}
-        AND clicked_at <= ${to}
-      GROUP BY DATE(clicked_at AT TIME ZONE 'UTC')
-      ORDER BY date ASC
-    `,
+    // Daily click trend (ORM approach to avoid raw SQL column issues)
+    prisma.click.findMany({
+      where,
+      select: { clickedAt: true },
+      orderBy: { clickedAt: 'asc' },
+    }),
 
     // QR vs normal clicks
     prisma.click.groupBy({
@@ -162,10 +158,13 @@ async function getUrlAnalytics(urlId, userId, period = 'month') {
       ),
     },
     trend: {
-      daily: dailyClicks.map((r) => ({
-        date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
-        count: Number(r.count),
-      })),
+      daily: Object.entries(
+        dailyClicks.reduce((acc, { clickedAt }) => {
+          const date = clickedAt.toISOString().split('T')[0];
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {})
+      ).map(([date, count]) => ({ date, count })),
     },
   };
 }
@@ -185,8 +184,7 @@ async function getDashboard(userId, period = 'month') {
     prisma.url.count({ where: { createdBy: userId, NOT: { status: 'DELETED' } } }),
 
     // Total clicks across all user URLs in period
-    prisma.click.aggregate({
-      _sum: { _all: true },
+    prisma.click.count({
       where: {
         url: { createdBy: userId },
         clickedAt: { gte: from, lte: to },
@@ -215,32 +213,33 @@ async function getDashboard(userId, period = 'month') {
       },
     }),
 
-    // Click trend for dashboard chart
-    prisma.$queryRaw`
-      SELECT DATE(c.clicked_at AT TIME ZONE 'UTC') as date, COUNT(*) as count
-      FROM clicks c
-      INNER JOIN urls u ON c.url_id = u.id
-      WHERE u.created_by = ${userId}::uuid
-        AND c.clicked_at >= ${from}
-        AND c.clicked_at <= ${to}
-      GROUP BY DATE(c.clicked_at AT TIME ZONE 'UTC')
-      ORDER BY date ASC
-    `,
+    // Click trend for dashboard chart (using ORM to avoid raw SQL column name issues)
+    prisma.click.findMany({
+      where: {
+        url: { createdBy: userId },
+        clickedAt: { gte: from, lte: to },
+      },
+      select: { clickedAt: true },
+      orderBy: { clickedAt: 'asc' },
+    }),
   ]);
 
   return {
     period,
     summary: {
       totalUrls: urlCount,
-      totalClicks: Number(totalClicksResult._count?._all || 0),
+      totalClicks: totalClicksResult,
     },
     topUrls,
     recentActivity: recentClicks,
     trend: {
-      daily: clickTrend.map((r) => ({
-        date: r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date),
-        count: Number(r.count),
-      })),
+      daily: Object.entries(
+        clickTrend.reduce((acc, { clickedAt }) => {
+          const date = clickedAt.toISOString().split('T')[0];
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {})
+      ).map(([date, count]) => ({ date, count })),
     },
   };
 }
