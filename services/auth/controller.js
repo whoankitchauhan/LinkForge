@@ -9,8 +9,10 @@ const { AppError } = require('../../shared/middleware/errorHandler');
 function validate(req) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    const err = new AppError('Validation failed', 422);
-    err.errors = errors.array();
+    const errorList = errors.array();
+    const message = errorList.map((e) => e.msg).join(', ');
+    const err = new AppError(message || 'Validation failed', 422);
+    err.errors = errorList;
     throw err;
   }
 }
@@ -31,20 +33,9 @@ async function register(req, res, next) {
     const user = await authService.register({ email, username, password });
     res.status(201).json({
       success: true,
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: 'Registration successful. You can now log in.',
       data: { user },
     });
-  } catch (err) {
-    next(err);
-  }
-}
-
-async function verifyEmail(req, res, next) {
-  try {
-    const { token } = req.query;
-    if (!token) return next(new AppError('Verification token required', 400));
-    await authService.verifyEmail(token);
-    res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
   } catch (err) {
     next(err);
   }
@@ -145,6 +136,6 @@ async function getProfile(req, res, next) {
 }
 
 module.exports = {
-  register, verifyEmail, login, refresh,
+  register, login, refresh,
   logout, forgotPassword, resetPassword, getProfile,
 };
