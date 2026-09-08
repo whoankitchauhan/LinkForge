@@ -78,7 +78,7 @@ document.getElementById('form-register')?.addEventListener('submit', async (e) =
       return;
     }
 
-    window.showToast('Account created! Please check your email to verify.', 'success', 6000);
+    window.showToast('Account created successfully! You can now log in.', 'success', 5000);
     showAuthSection('login');
   } catch (err) {
     if (errEl) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }

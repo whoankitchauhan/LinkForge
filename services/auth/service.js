@@ -5,10 +5,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { prisma } = require('../../shared/prisma');
 const { AppError } = require('../../shared/middleware/errorHandler');
-const { publish, EVENTS } = require('../../shared/rabbitmq');
 const logger = require('../../shared/logger');
 
-const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 10;
 
 // ─── Token Helpers ────────────────────────────────────────────────────────────
 
@@ -32,10 +31,9 @@ function generateSecureToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// ─── Service Methods ──────────────────────────────────────────────────────────
+// ─── Register ────────────────────────────────────────────────────────────────
 
 async function register({ email, username, password }) {
-  // Check uniqueness
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email }, { username }] },
     select: { email: true, username: true },
@@ -47,49 +45,22 @@ async function register({ email, username, password }) {
   }
 
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const emailVerifyToken = generateSecureToken();
 
   const user = await prisma.user.create({
-    data: { email, username, passwordHash, emailVerifyToken },
+    data: { email, username, passwordHash },
     select: { id: true, email: true, username: true, role: true },
-  });
-
-  // Publish event for notification worker
-  await publish(EVENTS.USER_REGISTERED, {
-    userId: user.id,
-    email: user.email,
-    username: user.username,
-    verifyToken: emailVerifyToken,
   });
 
   logger.info('User registered', { userId: user.id, email: user.email });
   return user;
 }
 
-async function verifyEmail(token) {
-  const user = await prisma.user.findFirst({
-    where: { emailVerifyToken: token },
-    select: { id: true, emailVerified: true },
-  });
-
-  if (!user) throw new AppError('Invalid or expired verification token', 400);
-  if (user.emailVerified) throw new AppError('Email already verified', 400);
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { emailVerified: true, emailVerifyToken: null },
-  });
-
-  logger.info('Email verified', { userId: user.id });
-}
+// ─── Login ───────────────────────────────────────────────────────────────────
 
 async function login({ email, password }) {
   const user = await prisma.user.findUnique({
     where: { email },
-    select: {
-      id: true, email: true, username: true, role: true,
-      passwordHash: true, emailVerified: true,
-    },
+    select: { id: true, email: true, username: true, role: true, passwordHash: true },
   });
 
   if (!user) throw new AppError('Invalid email or password', 401);
@@ -115,6 +86,8 @@ async function login({ email, password }) {
     user: { id: user.id, email: user.email, username: user.username, role: user.role },
   };
 }
+
+// ─── Refresh Tokens ──────────────────────────────────────────────────────────
 
 async function refreshTokens(token) {
   let decoded;
@@ -146,6 +119,8 @@ async function refreshTokens(token) {
   return { accessToken, refreshToken: newRefreshToken };
 }
 
+// ─── Logout ──────────────────────────────────────────────────────────────────
+
 async function logout(userId) {
   await prisma.user.update({
     where: { id: userId },
@@ -154,10 +129,12 @@ async function logout(userId) {
   logger.info('User logged out', { userId });
 }
 
+// ─── Forgot Password ─────────────────────────────────────────────────────────
+
 async function forgotPassword(email) {
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
 
-  // Always respond with success (security: don't reveal email existence)
+  // Always respond OK (don't reveal if email exists)
   if (!user) return;
 
   const token = generateSecureToken();
@@ -168,9 +145,16 @@ async function forgotPassword(email) {
     data: { passwordResetToken: token, passwordResetExpires: expires },
   });
 
-  await publish(EVENTS.USER_PASSWORD_RESET, { email, token, userId: user.id });
-  logger.info('Password reset requested', { userId: user.id });
+  // In production: send an email with the token.
+  // For now, log it so you can use it during development.
+  logger.info('Password reset token (dev only — send via email in prod)', {
+    userId: user.id,
+    token,
+    resetUrl: `${process.env.APP_URL}/reset-password?token=${token}`,
+  });
 }
+
+// ─── Reset Password ──────────────────────────────────────────────────────────
 
 async function resetPassword(token, newPassword) {
   const user = await prisma.user.findFirst({
@@ -190,19 +174,21 @@ async function resetPassword(token, newPassword) {
       passwordHash,
       passwordResetToken: null,
       passwordResetExpires: null,
-      refreshTokenHash: null, // Invalidate all sessions
+      refreshTokenHash: null,
     },
   });
 
   logger.info('Password reset completed', { userId: user.id });
 }
 
+// ─── Get Profile ─────────────────────────────────────────────────────────────
+
 async function getProfile(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true, email: true, username: true, role: true,
-      emailVerified: true, createdAt: true,
+      createdAt: true,
       _count: { select: { urls: true } },
     },
   });
@@ -211,6 +197,6 @@ async function getProfile(userId) {
 }
 
 module.exports = {
-  register, verifyEmail, login, refreshTokens,
-  logout, forgotPassword, resetPassword, getProfile,
+  register, login, refreshTokens, logout,
+  forgotPassword, resetPassword, getProfile,
 };
