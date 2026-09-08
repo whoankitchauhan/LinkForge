@@ -10,7 +10,6 @@ const { urlsCreatedTotal } = require('../../shared/metrics');
 const logger = require('../../shared/logger');
 
 const CACHE_TTL = parseInt(process.env.CACHE_TTL) || 86400;
-const BASE_DOMAIN = process.env.BASE_DOMAIN || 'linkforge.io';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 
 // ─── Create URL ───────────────────────────────────────────────────────────────
@@ -19,7 +18,6 @@ async function createUrl(data, userId = null) {
     originalUrl,
     customAlias,
     title,
-    description,
     tags = [],
     expiresAt,
     slugType = process.env.DEFAULT_SLUG_TYPE || 'BASE62',
@@ -56,9 +54,7 @@ async function createUrl(data, userId = null) {
       shortCode,
       customAlias: slugType === 'CUSTOM' ? shortCode : null,
       slugType,
-      domain: BASE_DOMAIN,
       title,
-      description,
       tags,
       qrCodeUrl,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
@@ -94,7 +90,7 @@ async function listUrls(userId, { page = 1, limit = 20, status, sort = 'createdA
       orderBy: { [sort]: order },
       select: {
         id: true, originalUrl: true, shortCode: true, customAlias: true,
-        slugType: true, title: true, description: true, tags: true,
+        slugType: true, title: true, tags: true,
         qrCodeUrl: true, expiresAt: true, status: true, clickCount: true,
         createdAt: true, updatedAt: true,
       },
@@ -120,7 +116,7 @@ async function getUrlById(id, userId) {
     where: { id },
     select: {
       id: true, originalUrl: true, shortCode: true, customAlias: true,
-      slugType: true, domain: true, title: true, description: true, tags: true,
+      slugType: true, title: true, tags: true,
       qrCodeUrl: true, expiresAt: true, status: true, clickCount: true,
       createdBy: true, createdAt: true, updatedAt: true,
     },
@@ -143,13 +139,12 @@ async function updateUrl(id, userId, updates) {
   if (!existing) throw new AppError('URL not found', 404);
   if (existing.createdBy !== userId) throw new AppError('Access denied', 403);
 
-  const { title, description, tags, expiresAt, status } = updates;
+  const { title, tags, expiresAt, status } = updates;
 
   const updated = await prisma.url.update({
     where: { id },
     data: {
       ...(title !== undefined && { title }),
-      ...(description !== undefined && { description }),
       ...(tags !== undefined && { tags }),
       ...(expiresAt !== undefined && { expiresAt: expiresAt ? new Date(expiresAt) : null }),
       ...(status !== undefined && { status }),
