@@ -16,9 +16,6 @@ const {
 // POST /api/auth/register
 router.post('/register', registerValidators, ctrl.register);
 
-// GET  /api/auth/verify-email?token=xxx
-router.get('/verify-email', ctrl.verifyEmail);
-
 // POST /api/auth/login
 router.post('/login', authLimiter, loginValidators, ctrl.login);
 
