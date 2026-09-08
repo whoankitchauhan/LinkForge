@@ -35,3 +35,6 @@ tests/load/results/
 
 # Docker volumes
 data/
+
+# Interview 
+INTERVIEW_PREPARATION.md
